@@ -1,0 +1,21 @@
+{
+  "account_not_found": "No se encontró la cuenta",
+  "administrator_authentication_required": "Se requiere autenticación de administrador",
+  "administrator_credentials_invalid": "Las credenciales de administrador no son válidas",
+  "administrator_credentials_not_configured": "Las credenciales de administrador no están configuradas",
+  "bearer_token_invalid": "El token de acceso no es válido o ha caducado",
+  "bearer_token_required": "Se requiere autenticación con un token Bearer",
+  "client_authentication_required": "Se requiere autenticación de cliente",
+  "client_credentials_invalid": "Las credenciales de cliente no son válidas",
+  "duplicate_account": "El correo electrónico o el nombre de usuario ya existe",
+  "event_capacity_below_registrations": "La capacidad no puede ser menor que el número actual de inscripciones",
+  "event_capacity_full": "El evento ha alcanzado su capacidad máxima",
+  "event_not_found": "No se encontró el evento",
+  "insufficient_permissions": "No tienes permiso para realizar esta acción",
+  "invalid_registration_reference": "La inscripción hace referencia a un registro no válido",
+  "login_credentials_invalid": "El nombre de usuario o la contraseña no son válidos",
+  "patch_fields_not_null": "Los campos no pueden ser nulos",
+  "patch_fields_required": "Se requiere al menos un campo",
+  "registration_not_found": "No se encontró la inscripción",
+  "user_not_found": "No se encontró el usuario"
+}

@@ -1,0 +1,47 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-event-registration:${IMAGE_TAG:-latest}
+    container_name: event-registration-api
+    working_dir: /workspace
+    environment:
+      DATABASE_PATH: /data/event_registration.sqlite3
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - event_registration_data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-event-registration:${IMAGE_TAG:-latest}
+    container_name: event-registration-web
+    working_dir: /workspace
+    command: ["waitress-serve", "--listen=0.0.0.0:5000", "web.app:app"]
+    environment:
+      API_BASE_URL: http://app:8000
+      WEB_SECRET_KEY: ${WEB_SECRET_KEY:-}
+      WEB_COOKIE_SECURE: ${WEB_COOKIE_SECURE:-false}
+    ports:
+      - "127.0.0.1:5000:5000"
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  event_registration_data:

@@ -1,0 +1,7 @@
+target-version = "py312"
+extend-exclude = [".venv"]
+
+[lint]
+# Pycodestyle errors and Pyflakes: real defects such as syntax errors,
+# undefined names and unused imports or variables.
+select = ["E4", "E7", "E9", "F"]

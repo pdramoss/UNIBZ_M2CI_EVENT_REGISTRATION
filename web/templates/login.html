@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Log in · Event Registration{% endblock %}
+{% block content %}
+<section class="auth-panel">
+  <img class="auth-panel__bg" src="{{ url_for('static', filename='img/login-bg.png') }}" alt="" aria-hidden="true">
+  <span class="auth-panel__corner" aria-hidden="true">
+    <img src="{{ url_for('static', filename='img/abstract-design.svg') }}" alt="" width="342" height="325">
+  </span>
+  <div class="auth-header">
+    <h1>Login</h1>
+    <p>Welcome back! Please log in to access your account.</p>
+  </div>
+  <form method="post" class="auth-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if error %}<p class="message error" role="alert">{{ error }}</p>{% endif %}
+    <div class="auth-fields">
+      <div>
+        <label class="visually-hidden" for="username">Username</label>
+        <input id="username" name="username" type="text" required autocomplete="username" placeholder="Enter your Username" value="{{ username or '' }}">
+      </div>
+      <div class="password-field">
+        <label class="visually-hidden" for="password">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Enter your Password">
+        <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" aria-controls="password" hidden>
+          <img src="{{ url_for('static', filename='img/icon-eye.svg') }}" alt="" width="24" height="24">
+        </button>
+      </div>
+    </div>
+    <div class="auth-actions">
+      <button class="button block" type="submit">Login</button>
+      <a class="button secondary block" href="{{ url_for('new_record', resource='users') }}">Sign Up</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='login.js') }}" defer></script>
+{% endblock %}

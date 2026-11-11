@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ resource|capitalize }} · Event Registration{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">DIRECTORY</p><h1>{{ resource|capitalize }}</h1></div>
+  {% if can_create %}<a class="button" href="{{ url_for('new_record', resource=resource) }}">Create {{ resource[:-1] }}</a>{% endif %}
+</div>
+<form class="pagination" method="get">
+  <label for="limit">Rows</label>
+  <input id="limit" type="number" name="limit" min="1" max="500" value="{{ limit }}">
+  <input type="hidden" name="offset" value="0">
+  <button class="button small secondary" type="submit">Apply</button>
+  <span class="muted">Showing {{ records|length }} record(s) from {{ offset }}.</span>
+</form>
+{% if records %}
+<div class="table-wrap">
+  <table>
+    <thead><tr>{% for key in records[0] %}<th scope="col">{{ key|replace('_', ' ')|capitalize }}</th>{% endfor %}<th scope="col">Actions</th></tr></thead>
+    <tbody>
+      {% for record in records %}
+      <tr>
+        {% for key, value in record.items() %}
+        <td>{% if key == 'id' %}<a href="{{ url_for('record_detail', resource=resource, record_id=value) }}">{{ value }}</a>{% else %}{{ value }}{% endif %}</td>
+        {% endfor %}
+        <td class="actions">
+          {% if record.get('id') is not none %}
+          <a href="{{ url_for('record_detail', resource=resource, record_id=record['id']) }}">View</a>
+          {% if can_modify %}
+          <a href="{{ url_for('edit_record', resource=resource, record_id=record['id']) }}">Edit</a>
+          <form class="inline-form" method="post" action="{{ url_for('delete_record', resource=resource, record_id=record['id']) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="link-button danger-text" type="submit">Delete</button>
+          </form>
+          {% endif %}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state"><h2>No records yet</h2><p>Create a record to get started, or check back later.</p></div>
+{% endif %}
+<div class="pager">
+  {% if offset > 0 %}<a class="button small secondary" href="{{ url_for('list_records', resource=resource, limit=limit, offset=previous_offset) }}">Previous</a>{% endif %}
+  {% if records|length == limit %}<a class="button small secondary" href="{{ url_for('list_records', resource=resource, limit=limit, offset=offset+limit) }}">Next</a>{% endif %}
+</div>
+{% endblock %}

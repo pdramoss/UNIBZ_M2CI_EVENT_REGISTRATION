@@ -1,0 +1,59 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruff:
+    name: Ruff
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run Ruff
+        run: ruff check --output-format=github .
+
+      - name: Publish results summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Lint (Ruff)"
+            echo
+            echo "Version: \`$(ruff --version)\`"
+            echo
+            if ruff check --quiet . > /dev/null; then
+              echo "Result: **passed**, no findings."
+            else
+              echo "Result: **FAILED**"
+              echo
+              echo '```'
+              ruff check --statistics . || true
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

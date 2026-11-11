@@ -1,0 +1,21 @@
+{
+  "account_not_found": "Account not found",
+  "administrator_authentication_required": "Administrator authentication required",
+  "administrator_credentials_invalid": "Invalid administrator credentials",
+  "administrator_credentials_not_configured": "Administrator credentials are not configured",
+  "bearer_token_invalid": "Invalid or expired access token",
+  "bearer_token_required": "Bearer token authentication required",
+  "client_authentication_required": "Client authentication required",
+  "client_credentials_invalid": "Invalid client credentials",
+  "duplicate_account": "Email or username already exists",
+  "event_capacity_below_registrations": "Capacity cannot be lower than current registrations",
+  "event_capacity_full": "Event capacity is full",
+  "event_not_found": "Event not found",
+  "insufficient_permissions": "You do not have permission to perform this action",
+  "invalid_registration_reference": "Registration references an invalid record",
+  "login_credentials_invalid": "Invalid username or password",
+  "patch_fields_not_null": "Fields cannot be null",
+  "patch_fields_required": "At least one field is required",
+  "registration_not_found": "Registration not found",
+  "user_not_found": "User not found"
+}

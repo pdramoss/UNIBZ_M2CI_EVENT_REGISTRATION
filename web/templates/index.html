@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Event Registration{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">EVENT REGISTRATION</p>
+  <h1>Find your next event.</h1>
+  <p>Browse events, manage client accounts, and handle registrations through a simple web interface.</p>
+  <a class="button" href="{{ url_for('list_records', resource='events') }}">Browse events</a>
+  {% if not session.get('access_token') %}
+  <a class="button secondary" href="{{ url_for('login') }}">Log in</a>
+  {% endif %}
+</section>
+<section class="card-grid" aria-label="Available workflows">
+  <a class="card" href="{{ url_for('list_records', resource='events') }}">
+    <span class="card-number">01</span><h2>Events</h2><p>Browse event details{% if session.get('role') == 'administrator' %} and manage events{% endif %}.</p>
+  </a>
+  <a class="card" href="{{ url_for('list_records', resource='users') }}">
+    <span class="card-number">02</span><h2>Clients</h2><p>View and manage client profiles or create a new account.</p>
+  </a>
+  {% if session.get('role') == 'client' %}
+  <a class="card" href="{{ url_for('list_records', resource='registrations') }}">
+    <span class="card-number">03</span><h2>My registrations</h2><p>Create, update, and cancel your event registrations.</p>
+  </a>
+  {% elif session.get('role') == 'administrator' %}
+  <a class="card" href="{{ url_for('new_account') }}">
+    <span class="card-number">03</span><h2>Accounts</h2><p>Create Client and Administrator accounts.</p>
+  </a>
+  {% endif %}
+</section>
+{% endblock %}

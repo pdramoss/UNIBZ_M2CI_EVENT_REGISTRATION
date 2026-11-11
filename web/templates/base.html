@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Event Registration{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('index') }}">Event Registration</a>
+    <nav aria-label="Main navigation">
+      <a href="{{ url_for('list_records', resource='events') }}">Events</a>
+      <a href="{{ url_for('list_records', resource='users') }}">Clients</a>
+      {% if session.get('role') == 'client' %}
+      <a href="{{ url_for('list_records', resource='registrations') }}">My registrations</a>
+      {% endif %}
+      {% if session.get('role') == 'administrator' %}
+      <a href="{{ url_for('new_account') }}">Create account</a>
+      {% endif %}
+    </nav>
+    <div class="header-actions">
+      {% if session.get('access_token') %}
+      <span class="identity">{{ session.get('username') }} · {{ session.get('role') }}</span>
+      <form class="inline-form" action="{{ url_for('logout') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="link-button" type="submit">Log out</button>
+      </form>
+      {% else %}
+      <a class="header-link" href="{{ url_for('new_record', resource='users') }}">Sign Up</a>
+      <a class="button" href="{{ url_for('login') }}">Login</a>
+      {% endif %}
+    </div>
+  </header>
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="messages" role="status">
+          {% for category, message in messages %}
+          <p class="message {{ category }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <a class="brand" href="{{ url_for('index') }}">Event Registration</a>
+    <nav aria-label="Footer navigation">
+      <a href="{{ url_for('list_records', resource='events') }}">Events</a>
+      <a href="{{ url_for('list_records', resource='users') }}">Clients</a>
+    </nav>
+    <p class="footer-bar">Event registration managed through the documented API.</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

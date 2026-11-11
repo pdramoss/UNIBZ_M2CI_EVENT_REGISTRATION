@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Create account · Event Registration{% endblock %}
+{% block content %}
+<section class="form-card">
+  <a class="back-link" href="{{ url_for('index') }}">← Home</a>
+  <p class="eyebrow">ADMINISTRATION</p>
+  <h1>Create an account</h1>
+  <p class="muted">Only Administrators can create Client and Administrator accounts.</p>
+  {% if error %}<p class="message error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="role">Account type</label>
+    <select id="role" name="role" required>
+      <option value="">Select a role</option>
+      <option value="client" {% if values.get('role') == 'client' %}selected{% endif %}>Client</option>
+      <option value="administrator" {% if values.get('role') == 'administrator' %}selected{% endif %}>Administrator</option>
+    </select>
+    {% for name, label, input_type in [('name', 'Name', 'text'), ('email', 'Email', 'email'), ('age', 'Age', 'number'), ('username', 'Username', 'text'), ('password', 'Password', 'password')] %}
+    <label for="{{ name }}">{{ label }}<span aria-hidden="true"> *</span></label>
+    <input id="{{ name }}" name="{{ name }}" type="{{ input_type }}" required {% if input_type == 'number' %}min="0"{% endif %} {% if name == 'password' %}autocomplete="new-password"{% endif %} value="{{ '' if name == 'password' else values.get(name, '') }}">
+    {% endfor %}
+    <button class="button" type="submit">Create account</button>
+  </form>
+</section>
+{% endblock %}
