@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--base-url",
-        default=os.environ.get("API_BASE_URL", "http://127.0.0.1:8000"),
+        default=os.environ.get("API_BASE_URL", "http://127.0.0.1:9000"),
         help="API server base URL (default: %(default)s)",
     )
     resources = parser.add_subparsers(dest="resource", required=True)
@@ -87,6 +87,11 @@ def build_parser() -> argparse.ArgumentParser:
         list_parser = operations.add_parser("list")
         list_parser.add_argument("--limit", type=int, default=100)
         list_parser.add_argument("--offset", type=int, default=0)
+
+        if resource == "users":
+            operations.add_parser(
+                "me", help="The account the API_TOKEN belongs to"
+            )
 
         get_parser = operations.add_parser("get")
         get_parser.add_argument("id", type=int)
@@ -144,6 +149,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.operation == "list":
             path = f"{collection_path}?limit={args.limit}&offset={args.offset}"
             method = "GET"
+        elif args.operation == "me":
+            path = f"{collection_path}/me"
+            method = "GET"
         elif args.operation == "get":
             path = f"{collection_path}/{args.id}"
             method = "GET"
@@ -159,10 +167,15 @@ def main(argv: list[str] | None = None) -> int:
             path = f"{collection_path}/{args.id}"
             method = "DELETE"
 
-        requires_token = args.resource in {"clients", "administrators"} or (
-            args.resource == "events"
-            and args.operation in {"create", "update", "delete"}
-        ) or args.resource == "registrations"
+        requires_token = (
+            args.resource in {"clients", "administrators"}
+            or (
+                args.resource == "events"
+                and args.operation in {"create", "update", "delete"}
+            )
+            or args.resource == "registrations"
+            or (args.resource == "users" and args.operation != "create")
+        )
         if requires_token:
             token = os.environ.get("API_TOKEN")
             if not token:

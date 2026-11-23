@@ -106,6 +106,13 @@ p { margin: .4rem 0 1rem; }
 nav { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px 26px; }
 nav a, .header-link { color: var(--text); text-decoration: none; }
 nav a:hover, .header-link:hover { color: var(--accent); }
+nav a[aria-current="page"] {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+.site-footer nav a[aria-current="page"] { color: var(--accent); }
 .header-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px var(--space-5); }
 .header-actions .button { margin: 0; padding: 10px var(--space-6); font-size: var(--fs-base); font-weight: 400; }
 .identity { color: var(--text-soft); font-size: var(--fs-sm); }
@@ -198,7 +205,7 @@ input, textarea, select {
   color: var(--text);
   font: inherit;
 }
-input::placeholder, textarea::placeholder { color: var(--grey-40); }
+input::placeholder, textarea::placeholder { color: var(--muted); }
 textarea { resize: vertical; }
 input:focus, textarea:focus, select:focus {
   outline: 3px solid color-mix(in srgb, var(--accent) 22%, transparent);
@@ -225,6 +232,54 @@ input:focus, textarea:focus, select:focus {
   background: var(--danger-bg);
   color: var(--danger);
 }
+.error-summary {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-4) 18px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--danger-bg);
+}
+.error-summary h2 { margin: 0 0 var(--space-2); font-size: var(--fs-md); color: var(--danger); }
+.error-summary p { margin: 0 0 var(--space-2); }
+.error-summary p:last-child, .error-summary ul:last-child { margin-bottom: 0; }
+.error-summary ul { margin: 0; padding-left: 20px; }
+.error-summary li { margin-bottom: var(--space-1); }
+.error-summary a { color: var(--danger); }
+.error-summary:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+.field-error__mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+  font-size: .72rem;
+  font-weight: 600;
+}
+input[aria-invalid="true"], textarea[aria-invalid="true"], select[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+/* Delete confirmation */
+.confirm-warning { color: var(--text-soft); }
+.confirm-summary {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--line);
+}
+.confirm-summary div { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: 10px 0; border-bottom: 1px solid var(--line); }
+.confirm-summary dt { min-width: 150px; color: var(--muted); font-size: .78rem; font-weight: 500; text-transform: uppercase; }
+.confirm-summary dd { margin: 0; overflow-wrap: anywhere; }
+.confirm-card .detail-actions { flex-wrap: wrap; }
 /* Login panel */
 .auth-panel {
   position: relative;
@@ -273,7 +328,7 @@ form.auth-form { gap: 40px; }
   font-weight: 300;
   line-height: 1.5;
 }
-.auth-fields input::placeholder { color: var(--grey-35); }
+.auth-fields input::placeholder { color: var(--muted); }
 .password-field { position: relative; }
 .password-field input { padding-right: 64px; }
 .password-toggle {

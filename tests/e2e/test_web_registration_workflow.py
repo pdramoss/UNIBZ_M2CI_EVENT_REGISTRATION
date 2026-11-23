@@ -27,7 +27,7 @@ def _check_status(
 @pytest.mark.e2e
 def test_client_manages_registration_through_web_forms():
     api_base_url = os.environ.get("API_BASE_URL")
-    web_base_url = os.environ.get("WEB_BASE_URL", "http://127.0.0.1:5000")
+    web_base_url = os.environ.get("WEB_BASE_URL", "http://127.0.0.1:9000")
     admin_username = os.environ.get("ADMIN_USERNAME")
     admin_password = os.environ.get("ADMIN_PASSWORD")
     if not api_base_url or not admin_username or not admin_password:
@@ -118,7 +118,11 @@ def test_client_manages_registration_through_web_forms():
             assert user_response.status == 200, user_response.text()
             assert username in user_response.text()
             user_id = int(user_response.url.rsplit("/", 1)[1])
-            assert api.get(f"/api/v1/users/{user_id}").status == 200
+            assert api.get(
+                f"/api/v1/users/{user_id}", headers=admin_headers
+            ).status == 200
+            # Anonymous reads are refused: the directory is not public.
+            assert api.get(f"/api/v1/users/{user_id}").status == 401
             user_edit_page = web.get(f"/users/{user_id}/edit")
             user_edit = web.post(
                 f"/users/{user_id}/edit",
@@ -133,7 +137,9 @@ def test_client_manages_registration_through_web_forms():
             )
             assert user_edit.status == 200, user_edit.text()
             assert "31" in user_edit.text()
-            assert api.get(f"/api/v1/users/{user_id}").json()["age"] == 31
+            assert api.get(
+                f"/api/v1/users/{user_id}", headers=admin_headers
+            ).json()["age"] == 31
 
             client_login = api.post(
                 "/api/v1/auth/login",
@@ -221,16 +227,39 @@ def test_client_manages_registration_through_web_forms():
             assert client_logout.status == 204, client_logout.text()
             client_headers = None
 
-            user_detail = web.get(f"/users/{user_id}")
-            user_delete = web.post(
-                f"/users/{user_id}/delete",
-                form={"csrf_token": _csrf_token(user_detail)},
+            # A client reaches its own account at /profile and nothing else:
+            # the client directory and its records belong to administrators.
+            own_profile = web.get("/profile")
+            assert own_profile.status == 200, own_profile.text()
+            assert username in own_profile.text()
+            profile_save = web.post(
+                "/profile",
+                form={
+                    "csrf_token": _csrf_token(own_profile),
+                    "name": "Web E2E Client Renamed",
+                    "email": f"{username}@example.com",
+                    "age": "32",
+                    "username": username,
+                },
             )
-            assert user_delete.status == 200, user_delete.text()
-            assert (
-                api.get(f"/api/v1/users/{user_id}").status == 404
+            assert profile_save.status == 200, profile_save.text()
+            assert "Profile updated." in profile_save.text()
+            assert api.get(
+                f"/api/v1/users/{user_id}", headers=admin_headers
+            ).json()["age"] == 32
+
+            new_password = f"{password}-rotated"
+            password_change = web.post(
+                "/profile/password",
+                form={
+                    "csrf_token": _csrf_token(web.get("/profile")),
+                    "password": new_password,
+                    "password_confirmation": new_password,
+                },
             )
-            user_id = None
+            assert password_change.status == 200, password_change.text()
+            assert "Password changed." in password_change.text()
+            assert web.get(f"/users/{user_id}").status == 403
 
             client_home = web.get("/")
             client_web_logout = web.post(
@@ -247,6 +276,22 @@ def test_client_manages_registration_through_web_forms():
                 },
             )
             assert admin_web_login.status == 200, admin_web_login.text()
+
+            # Deleting a client record is an administrator action now, so it runs
+            # here rather than from the client's own session.
+            user_confirm = web.get(f"/users/{user_id}/delete")
+            assert user_confirm.status == 200, user_confirm.text()
+            assert "cannot be undone" in user_confirm.text()
+            user_delete = web.post(
+                f"/users/{user_id}/delete",
+                form={"csrf_token": _csrf_token(user_confirm)},
+            )
+            assert user_delete.status == 200, user_delete.text()
+            assert api.get(
+                f"/api/v1/users/{user_id}", headers=admin_headers
+            ).status == 404
+            user_id = None
+
             event_detail = web.get(f"/events/{event_id}")
             event_delete = web.post(
                 f"/events/{event_id}/delete",
@@ -292,10 +337,14 @@ def test_client_manages_registration_through_web_forms():
                     cleanup_errors, response, 401, "verify Client session revocation"
                 )
 
-            if user_id is not None:
-                response = api.delete(f"/api/v1/users/{user_id}")
+            if user_id is not None and admin_headers:
+                response = api.delete(
+                    f"/api/v1/users/{user_id}", headers=admin_headers
+                )
                 _check_status(cleanup_errors, response, 204, "delete test Client")
-                response = api.get(f"/api/v1/users/{user_id}")
+                response = api.get(
+                    f"/api/v1/users/{user_id}", headers=admin_headers
+                )
                 _check_status(cleanup_errors, response, 404, "verify Client cleanup")
 
             if event_id is not None and admin_headers:

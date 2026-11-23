@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}My profile · Event Registration{% endblock %}
+{% block content %}
+{% if missing %}
+<section class="form-card">
+  <p class="eyebrow">MY PROFILE</p>
+  <h1>No stored account</h1>
+  <p class="muted">{{ missing }}</p>
+  <a class="button secondary" href="{{ url_for('index') }}">Return home</a>
+</section>
+{% else %}
+<section class="form-card">
+  <p class="eyebrow">MY PROFILE</p>
+  <h1>Account details</h1>
+  <p class="muted">Signed in as {{ session.get('username') }} · {{ session.get('role') }}.</p>
+  {% include "_form_errors.html" %}
+  <form method="post" action="{{ url_for('update_profile') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for name, field_label, input_type in [('name', 'Name', 'text'), ('email', 'Email', 'email'), ('age', 'Age', 'number'), ('username', 'Username', 'text')] %}
+    {% set field_error = field_errors.get(name) %}
+    <label for="{{ name }}">{{ field_label }}<span aria-hidden="true"> *</span></label>
+    <input id="{{ name }}" name="{{ name }}" type="{{ input_type }}" value="{{ account.get(name, '') }}" required {% if input_type == 'number' %}min="0"{% endif %} autocomplete="{{ 'username' if name == 'username' else name }}" {% if field_error %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+    {% if field_error %}<p class="field-error" id="{{ name }}-error"><span class="field-error__mark" aria-hidden="true">!</span> {{ field_error }}</p>{% endif %}
+    {% endfor %}
+    <button class="button" type="submit">Save details</button>
+  </form>
+</section>
+{# A second form, so saving a detail cannot carry a password with it and a
+   password change cannot overwrite a field the user did not touch. #}
+<section class="form-card">
+  <h2>Change password</h2>
+  <p class="muted">Your current password is never shown. Enter a new one twice to replace it.</p>
+  {% set password_errors = password_field_errors | default({}) %}
+  {% with error = password_error | default(none), field_errors = password_errors %}
+  {% include "_form_errors.html" %}
+  {% endwith %}
+  <form method="post" action="{{ url_for('change_password') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="password">New password<span aria-hidden="true"> *</span></label>
+    <input id="password" name="password" type="password" required autocomplete="new-password" {% if password_errors.get('password') %}aria-invalid="true" aria-describedby="password-error"{% endif %}>
+    {% if password_errors.get('password') %}<p class="field-error" id="password-error"><span class="field-error__mark" aria-hidden="true">!</span> {{ password_errors.get('password') }}</p>{% endif %}
+    <label for="password_confirmation">Repeat new password<span aria-hidden="true"> *</span></label>
+    <input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password" {% if password_errors.get('password_confirmation') %}aria-invalid="true" aria-describedby="password_confirmation-error"{% endif %}>
+    {% if password_errors.get('password_confirmation') %}<p class="field-error" id="password_confirmation-error"><span class="field-error__mark" aria-hidden="true">!</span> {{ password_errors.get('password_confirmation') }}</p>{% endif %}
+    <button class="button" type="submit">Change password</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

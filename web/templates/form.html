@@ -1,19 +1,21 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if editing else 'Create' }} {{ resource[:-1] }} · Event Registration{% endblock %}
+{% set resource_name = resource_label(resource) %}
+{% block title %}{{ 'Edit' if editing else 'Create' }} {{ resource_name|lower }} · Event Registration{% endblock %}
 {% block content %}
 <section class="form-card">
-  <a class="back-link" href="{{ url_for('list_records', resource=resource) }}">← Back to {{ resource }}</a>
-  <p class="eyebrow">{{ 'UPDATE' if editing else 'NEW' }} {{ resource[:-1]|upper }}</p>
-  <h1>{{ 'Edit' if editing else 'Create' }} {{ resource[:-1] }}</h1>
-  {% if error %}<p class="message error" role="alert">{{ error }}</p>{% endif %}
+  <a class="back-link" href="{{ url_for('list_records', resource=resource) }}">← Back to {{ resource_label(resource, true)|lower }}</a>
+  <p class="eyebrow">{{ 'UPDATE' if editing else 'NEW' }} {{ resource_name|upper }}</p>
+  <h1>{{ 'Edit' if editing else 'Create' }} {{ resource_name|lower }}</h1>
+  {% include "_form_errors.html" %}
   <form method="post" action="{{ url_for('edit_record', resource=resource, record_id=record_id) if editing else url_for('new_record', resource=resource) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for name, label, input_type in fields %}
+    {% set field_error = field_errors.get(name) %}
     <label for="{{ name }}">{{ label }}{% if input_type == 'readonly' %}{% elif name != 'password' or not editing %}<span aria-hidden="true"> *</span>{% else %} <span class="muted">(leave blank to keep current)</span>{% endif %}</label>
     {% if name == 'description' %}
-    <textarea id="{{ name }}" name="{{ name }}" rows="3">{{ values.get(name, '') }}</textarea>
+    <textarea id="{{ name }}" name="{{ name }}" rows="3" {% if field_error %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>{{ values.get(name, '') }}</textarea>
     {% elif input_type == 'select' %}
-    <select id="{{ name }}" name="{{ name }}" required>
+    <select id="{{ name }}" name="{{ name }}" required {% if field_error %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
       <option value="" {% if not values.get(name) %}selected{% endif %}>Select an event</option>
       {% for value, option_label, option_date in options.get(name, []) %}
       <option value="{{ value }}" data-date="{{ option_date }}" {% if values.get(name)|string == value %}selected{% endif %}>{{ option_label }}</option>
@@ -23,8 +25,9 @@
     {% elif input_type == 'readonly' %}
     <p class="field-value" id="{{ name }}" data-empty="Select an event first" aria-live="polite">{{ values.get(name, '') or 'Select an event first' }}</p>
     {% else %}
-    <input id="{{ name }}" name="{{ name }}" type="{{ input_type }}" value="{{ '' if name == 'password' else values.get(name, '') }}" {% if name != 'password' or not editing %}required{% endif %} {% if input_type == 'number' %}min="0"{% endif %} {% if name == 'password' %}autocomplete="new-password"{% endif %}>
+    <input id="{{ name }}" name="{{ name }}" type="{{ input_type }}" value="{{ '' if name == 'password' else values.get(name, '') }}" {% if name != 'password' or not editing %}required{% endif %} {% if input_type == 'number' %}min="0"{% endif %} {% if name == 'password' %}autocomplete="new-password"{% endif %} {% if field_error %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
     {% endif %}
+    {% if field_error %}<p class="field-error" id="{{ name }}-error"><span class="field-error__mark" aria-hidden="true">!</span> {{ field_error }}</p>{% endif %}
     {% endfor %}
     <button class="button" type="submit">{{ 'Save changes' if editing else 'Create' }}</button>
   </form>

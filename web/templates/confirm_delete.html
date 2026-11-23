@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set label = resource_label(resource) %}
+{% set record_name = record.get('name') or (label ~ ' #' ~ record.get('id')) %}
+{% block title %}Delete {{ label|lower }} · Event Registration{% endblock %}
+{% block content %}
+<section class="form-card narrow confirm-card">
+  <a class="back-link" href="{{ url_for('record_detail', resource=resource, record_id=record_id) }}">← Back to {{ record_name }}</a>
+  <p class="eyebrow">CONFIRM DELETION</p>
+  <h1>Delete {{ record_name }}?</h1>
+  <p class="confirm-warning">This permanently removes the {{ label|lower }} and cannot be undone.</p>
+  <dl class="confirm-summary">
+    {% for key, value in record.items() %}
+    <div><dt>{{ key|replace('_', ' ')|capitalize }}</dt><dd>{{ value }}</dd></div>
+    {% endfor %}
+  </dl>
+  <div class="detail-actions">
+    <form method="post" action="{{ url_for('delete_record', resource=resource, record_id=record_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="button danger" type="submit">Delete {{ label|lower }}</button>
+    </form>
+    <a class="button secondary" href="{{ url_for('record_detail', resource=resource, record_id=record_id) }}">Keep {{ label|lower }}</a>
+  </div>
+</section>
+{% endblock %}

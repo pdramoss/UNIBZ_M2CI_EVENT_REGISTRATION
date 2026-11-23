@@ -1,0 +1,67 @@
+# The tests no single service owns.
+#
+# The per-service pipelines each cover one service. These three suites span all
+# of them: the split contract (every service serves only its own routes), the
+# common/ foundation they all build on, and the CLI client. They are not path
+# filtered, because a change anywhere can break them.
+name: Shared and cross-service tests
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared:
+    name: Cross-service contract, common foundation and CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            common/requirements.txt
+            web/requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Compile every source tree
+        run: python -m compileall -q common services web scripts
+
+      - name: Run the cross-service and shared unit tests
+        run: >
+          pytest
+          tests/unit/test_services.py
+          tests/unit/test_common.py
+          tests/unit/test_api_cli.py
+          --junitxml=reports/shared-tests.xml
+
+      - name: Publish results summary
+        if: always()
+        run: python .github/scripts/unit_test_summary.py reports/shared-tests.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-test-report
+          path: reports/shared-tests.xml
+          if-no-files-found: warn

@@ -1,0 +1,77 @@
+# The registrations service's own pipeline: it builds that service's image and runs
+# that service's unit tests, and nothing else. Triggered by changes to the
+# service itself or to the common/ foundation it is built on, so the three
+# backend services no longer wait on each other to go green.
+name: registrations service
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "services/registrations/**"
+      - "common/**"
+      - "tests/unit/test_registrations_api.py"
+      - ".github/workflows/service-registrations.yml"
+      - ".github/scripts/unit_test_summary.py"
+  pull_request:
+    paths:
+      - "services/registrations/**"
+      - "common/**"
+      - "tests/unit/test_registrations_api.py"
+      - ".github/workflows/service-registrations.yml"
+      - ".github/scripts/unit_test_summary.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: registrations-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build image and run unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            common/requirements.txt
+            services/registrations/requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Compile sources
+        run: python -m compileall -q common services/registrations
+
+      # The build context is the repository root so the image can reach common/,
+      # but the Dockerfile copies only what this service needs.
+      - name: Build the service image
+        run: docker build --file services/registrations/Dockerfile --tag event-registration-registrations:ci .
+
+      - name: Run unit tests
+        run: pytest tests/unit/test_registrations_api.py --junitxml=reports/registrations-tests.xml
+
+      - name: Publish results summary
+        if: always()
+        run: python .github/scripts/unit_test_summary.py reports/registrations-tests.xml event-registration-registrations:ci >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: registrations-test-report
+          path: reports/registrations-tests.xml
+          if-no-files-found: warn

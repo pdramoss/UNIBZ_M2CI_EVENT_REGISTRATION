@@ -15,11 +15,11 @@
     {% if error %}<p class="message error" role="alert">{{ error }}</p>{% endif %}
     <div class="auth-fields">
       <div>
-        <label class="visually-hidden" for="username">Username</label>
+        <label for="username">Username</label>
         <input id="username" name="username" type="text" required autocomplete="username" placeholder="Enter your Username" value="{{ username or '' }}">
       </div>
       <div class="password-field">
-        <label class="visually-hidden" for="password">Password</label>
+        <label for="password">Password</label>
         <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Enter your Password">
         <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" aria-controls="password" hidden>
           <img src="{{ url_for('static', filename='img/icon-eye.svg') }}" alt="" width="24" height="24">

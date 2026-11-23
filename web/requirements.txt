@@ -1,0 +1,7 @@
+# The web interface's runtime dependencies. It is a thin HTTP client over the
+# gateway: no FastAPI, no database driver, nothing from common/.
+cachelib>=0.13,<1.0
+Flask>=3.0,<4.0
+Flask-Session>=0.8,<1.0
+Flask-WTF>=1.2,<2.0
+waitress>=3.0,<4.0

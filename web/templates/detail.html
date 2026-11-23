@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ resource[:-1]|capitalize }} #{{ record.get('id') }} · Event Registration{% endblock %}
+{% set resource_name = resource_label(resource) %}
+{% block title %}{{ resource_name }} #{{ record.get('id') }} · Event Registration{% endblock %}
 {% block content %}
-<a class="back-link" href="{{ url_for('list_records', resource=resource) }}">← Back to {{ resource }}</a>
-<div class="page-heading"><div><p class="eyebrow">{{ resource[:-1]|upper }} DETAILS</p><h1>{{ record.get('name') or (resource[:-1]|capitalize ~ ' #' ~ record.get('id')) }}</h1></div></div>
+<a class="back-link" href="{{ url_for('list_records', resource=resource) }}">← Back to {{ resource_label(resource, true)|lower }}</a>
+<div class="page-heading"><div><p class="eyebrow">{{ resource_name|upper }} DETAILS</p><h1>{{ record.get('name') or (resource_name ~ ' #' ~ record.get('id')) }}</h1></div></div>
 <dl class="detail-grid">
   {% for key, value in record.items() %}
   <div><dt>{{ field_labels.get(key) or key|replace('_', ' ')|capitalize }}</dt><dd>{{ value }}</dd></div>
@@ -11,10 +12,7 @@
 {% if can_modify %}
 <div class="detail-actions">
   <a class="button" href="{{ url_for('edit_record', resource=resource, record_id=record['id']) }}">Edit</a>
-  <form method="post" action="{{ url_for('delete_record', resource=resource, record_id=record['id']) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="button danger" type="submit">Delete</button>
-  </form>
+  <a class="button danger" href="{{ url_for('delete_record', resource=resource, record_id=record['id']) }}">Delete</a>
 </div>
 {% endif %}
 {% endblock %}

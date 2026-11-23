@@ -1,25 +1,123 @@
 services:
-  app:
+  # The backend is three independently built services, each with its own folder,
+  # Dockerfile and image, and each serving its own slice of /api/v1 and nothing
+  # else, so the gateway can route a request by its path alone.
+  #
+  # They share one SQLite database on the event_registration_data volume: that is
+  # what lets each of them authenticate by reading auth_sessions itself, with no
+  # service-to-service calls. Every build uses the repository root as its context
+  # so it can reach common/, but each image copies only common/ and its own
+  # service folder.
+  accounts:
+    <<: &backend_service
+      working_dir: /workspace
+      environment:
+        DATABASE_PATH: /data/event_registration.sqlite3
+      volumes:
+        - event_registration_data:/data
+      expose:
+        - "8000"
     build:
       context: .
-      dockerfile: Dockerfile
-    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-event-registration:${IMAGE_TAG:-latest}
-    container_name: event-registration-api
-    working_dir: /workspace
+      dockerfile: services/accounts/Dockerfile
+    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-accounts:${IMAGE_TAG:-latest}
+    container_name: event-registration-accounts
     environment:
       DATABASE_PATH: /data/event_registration.sqlite3
+      # Only the login handler reads these, and login belongs to this service.
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-    ports:
-      - "127.0.0.1:8000:8000"
-    volumes:
-      - event_registration_data:/data
     healthcheck:
       test:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=2)"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs/accounts/openapi.json', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  events:
+    <<: *backend_service
+    build:
+      context: .
+      dockerfile: services/events/Dockerfile
+    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-events:${IMAGE_TAG:-latest}
+    container_name: event-registration-events
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs/events/openapi.json', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  registrations:
+    <<: *backend_service
+    build:
+      context: .
+      dockerfile: services/registrations/Dockerfile
+    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-registrations:${IMAGE_TAG:-latest}
+    container_name: event-registration-registrations
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs/registrations/openapi.json', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  # The gateway is built like the rest, from its own folder: the routing
+  # configuration is baked into its image rather than bind-mounted, so the
+  # container carries its whole configuration and can run on a host that has no
+  # copy of this repository. Its build context is ./gateway alone, because unlike
+  # a backend service it needs nothing from common/.
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-gateway:${IMAGE_TAG:-latest}
+    container_name: event-registration-gateway
+    environment:
+      GATEWAY_ACCOUNTS_UPSTREAM: accounts:8000
+      GATEWAY_EVENTS_UPSTREAM: events:8000
+      GATEWAY_REGISTRATIONS_UPSTREAM: registrations:8000
+      GATEWAY_WEB_UPSTREAM: web:5000
+      GATEWAY_TIMEOUT: ${GATEWAY_TIMEOUT:-15s}
+      # Restrict envsubst to GATEWAY_* so nginx's own $variables are preserved.
+      NGINX_ENVSUBST_FILTER: GATEWAY_
+    ports:
+      - "127.0.0.1:9000:9000"
+    depends_on:
+      accounts:
+        condition: service_healthy
+      events:
+        condition: service_healthy
+      registrations:
+        condition: service_healthy
+      # The gateway resolves its targets per request, so it does not need these
+      # containers to exist at startup; the ordering is here so it only starts
+      # accepting traffic once the backends are healthy. service_started, not
+      # service_healthy, for web: web reaches the backend through this gateway,
+      # so waiting for the interface to be healthy here would be a cycle.
+      web:
+        condition: service_started
+    healthcheck:
+      # The nginx alpine image has no curl; busybox wget is present.
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:9000/health
       interval: 5s
       timeout: 3s
       retries: 12
@@ -28,19 +126,24 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-event-registration:${IMAGE_TAG:-latest}
+      dockerfile: web/Dockerfile
+    image: ${DOCKERHUB_USERNAME:-local}/unibz-m2ci-web:${IMAGE_TAG:-latest}
     container_name: event-registration-web
     working_dir: /workspace
-    command: ["waitress-serve", "--listen=0.0.0.0:5000", "web.app:app"]
     environment:
-      API_BASE_URL: http://app:8000
+      # The one URL the interface knows. It never addresses the API directly.
+      GATEWAY_URL: http://gateway:9000
       WEB_SECRET_KEY: ${WEB_SECRET_KEY:-}
       WEB_COOKIE_SECURE: ${WEB_COOKIE_SECURE:-false}
-    ports:
-      - "127.0.0.1:5000:5000"
+    # No published port: the interface is reached through the gateway on 9000.
+    expose:
+      - "5000"
     depends_on:
-      app:
+      accounts:
+        condition: service_healthy
+      events:
+        condition: service_healthy
+      registrations:
         condition: service_healthy
 
 volumes:

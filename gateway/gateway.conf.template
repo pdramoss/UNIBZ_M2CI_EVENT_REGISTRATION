@@ -1,0 +1,123 @@
+# The single entry point for the whole application.
+#
+# This file is the only place that knows the application is divided at all. Four
+# containers sit behind it, and a request is routed by its path alone:
+#
+#   /api/v1/auth, /users, /clients, /administrators -> the accounts service
+#   /api/v1/events                                  -> the events service
+#   /api/v1/registrations                           -> the registrations service
+#   /docs/<service>                                 -> that service's own Swagger page
+#   everything else                                 -> the Flask web interface
+#
+# Transparent by contract on every proxied path: it must never inspect, validate
+# or rewrite a payload, and no proxy_pass here carries a URI, so request paths and
+# query strings reach their service untouched. Each backend service stays the
+# single source of truth for its own validation and authorization.
+#
+# Rendered by the nginx image's entrypoint, which runs envsubst over
+# /etc/nginx/templates/*.template. NGINX_ENVSUBST_FILTER restricts substitution to
+# GATEWAY_* so nginx's own runtime variables ($status, $request_id, ...) survive.
+
+# $upstream_addr names the container that answered, so the access log shows the
+# fan-out across the backend services.
+log_format gateway '$request_id $request_method $uri -> $status $upstream_addr in $request_time s';
+
+server {
+    listen 9000;
+    server_name _;
+
+    access_log /dev/stdout gateway;
+    error_log /dev/stderr warn;
+
+    # Docker's embedded DNS, and the reason each target below is named through a
+    # variable instead of an "upstream" block: such a block resolves its server
+    # name once, when nginx loads its configuration, and then keeps that address
+    # for good. Recreating a backend container gives it a new address, and since
+    # Compose can hand the freed address to a different service, a stale mapping
+    # does not fail loudly - it sends /api/v1/auth to the events container and
+    # returns that service's 404. A variable makes nginx resolve per request, so
+    # a recreated container is picked up within the resolver's TTL.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    set $accounts_service ${GATEWAY_ACCOUNTS_UPSTREAM};
+    set $events_service ${GATEWAY_EVENTS_UPSTREAM};
+    set $registrations_service ${GATEWAY_REGISTRATIONS_UPSTREAM};
+    set $web_interface ${GATEWAY_WEB_UPSTREAM};
+
+    # Declared once here and inherited by every location below, so a routing rule
+    # is one proxy_pass line and the proxy behaviour cannot drift between them.
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+
+    # Upstreams build their own links and set their cookies against the host the
+    # browser used, so pass that host rather than the container's name. That is
+    # also why proxy_redirect can be off: no upstream can emit a Location naming
+    # its internal address.
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_redirect off;
+
+    proxy_connect_timeout ${GATEWAY_TIMEOUT};
+    proxy_send_timeout ${GATEWAY_TIMEOUT};
+    proxy_read_timeout ${GATEWAY_TIMEOUT};
+
+    # Keep each service's own 4xx/5xx bodies verbatim, including the localized
+    # {"detail": ...} and the WWW-Authenticate challenge on a 401. Only the errors
+    # nginx itself raises are replaced, by the named locations at the bottom.
+    proxy_intercept_errors off;
+    error_page 502 503 = @api_unreachable;
+    error_page 504 = @api_timeout;
+
+    # The gateway's own liveness signal, used by the Compose healthcheck. An exact
+    # match, so it is answered here and never reaches the interface's /<resource>
+    # route.
+    location = /health {
+        default_type application/json;
+        return 200 '{"status":"ok","services":{"accounts":"${GATEWAY_ACCOUNTS_UPSTREAM}","events":"${GATEWAY_EVENTS_UPSTREAM}","registrations":"${GATEWAY_REGISTRATIONS_UPSTREAM}","web":"${GATEWAY_WEB_UPSTREAM}"}}';
+    }
+
+    # --- accounts: authentication and the user records -----------------------
+    location /api/v1/auth            { proxy_pass http://$accounts_service; }
+    location /api/v1/users           { proxy_pass http://$accounts_service; }
+    location /api/v1/clients         { proxy_pass http://$accounts_service; }
+    location /api/v1/administrators  { proxy_pass http://$accounts_service; }
+    location /docs/accounts          { proxy_pass http://$accounts_service; }
+
+    # --- events ---------------------------------------------------------------
+    location /api/v1/events          { proxy_pass http://$events_service; }
+    location /docs/events            { proxy_pass http://$events_service; }
+
+    # --- registrations --------------------------------------------------------
+    location /api/v1/registrations   { proxy_pass http://$registrations_service; }
+    location /docs/registrations     { proxy_pass http://$registrations_service; }
+
+    # An /api/v1 path no service owns is answered here in the API's error shape,
+    # rather than falling through to the interface and returning an HTML page to
+    # something expecting JSON.
+    location /api/v1 {
+        default_type application/json;
+        return 404 '{"detail":"No service owns this path."}';
+    }
+
+    location / {
+        proxy_pass http://$web_interface;
+        # A browser is asking for a page here, so answer with a page, not JSON.
+        error_page 502 503 504 = @web_unavailable;
+    }
+
+    location @api_unreachable {
+        default_type application/json;
+        return 502 '{"detail":"Could not reach the API."}';
+    }
+
+    location @api_timeout {
+        default_type application/json;
+        return 504 '{"detail":"The API did not respond in time."}';
+    }
+
+    location @web_unavailable {
+        default_type text/html;
+        return 503 '<!doctype html><title>Unavailable</title><h1>The web interface is unavailable</h1><p>Try again in a moment.</p>';
+    }
+}

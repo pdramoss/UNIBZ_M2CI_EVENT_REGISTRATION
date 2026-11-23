@@ -256,3 +256,31 @@ def test_auth_logout_uses_api_token(capsys, monkeypatch):
         token="issued-token",
     )
     assert capsys.readouterr().out == "Logged out\n"
+
+
+def test_users_me_requires_a_token_and_asks_for_the_own_account(capsys, monkeypatch):
+    monkeypatch.setenv("API_TOKEN", "client-token")
+
+    with patch(
+        "scripts.api_cli.send_request", return_value={"id": 4, "username": "alex"}
+    ) as send_request:
+        result = api_cli.main(
+            ["--base-url", "http://localhost:8000", "users", "me"]
+        )
+
+    assert result == 0
+    send_request.assert_called_once_with(
+        "http://localhost:8000",
+        "GET",
+        "/api/v1/users/me",
+        None,
+        token="client-token",
+    )
+    assert json.loads(capsys.readouterr().out) == {"id": 4, "username": "alex"}
+
+
+def test_reading_a_user_without_a_token_is_refused(monkeypatch):
+    monkeypatch.delenv("API_TOKEN", raising=False)
+
+    with pytest.raises(SystemExit):
+        api_cli.main(["users", "get", "4"])

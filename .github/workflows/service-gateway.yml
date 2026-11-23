@@ -1,0 +1,104 @@
+# The gateway's own pipeline. It is the only service workflow with no Python and
+# no pytest: there is nothing to import and stub in process, which is why the
+# gateway has no unit tests by design. Its routing behaviour is covered end to
+# end by e2e.yml against the running stack.
+#
+# What this adds is a check that did not exist while the gateway was stock nginx
+# with a mounted config: the rendered configuration is validated here, so a
+# broken template fails in CI instead of at container start.
+name: gateway service
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "gateway/**"
+      - ".github/workflows/service-gateway.yml"
+  pull_request:
+    paths:
+      - "gateway/**"
+      - ".github/workflows/service-gateway.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gateway-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-validate:
+    name: Build image and validate the rendered configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Mirrors the gateway's Compose environment, so CI renders the
+      # configuration exactly as the running stack does. NGINX_ENVSUBST_FILTER
+      # restricts substitution to GATEWAY_*, so no unrelated environment
+      # variable can ever collide with one of nginx's own $variables; nothing in
+      # the image's environment collides today, which makes it a guard rather
+      # than a fix, but it has to match Compose for this check to be meaningful.
+      GW_ENV: >-
+        -e GATEWAY_ACCOUNTS_UPSTREAM=accounts:8000
+        -e GATEWAY_EVENTS_UPSTREAM=events:8000
+        -e GATEWAY_REGISTRATIONS_UPSTREAM=registrations:8000
+        -e GATEWAY_WEB_UPSTREAM=web:5000
+        -e GATEWAY_TIMEOUT=15s
+        -e NGINX_ENVSUBST_FILTER=GATEWAY_
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      # The context is ./gateway, not the repository root: the gateway needs
+      # nothing from common/ or from any service folder.
+      - name: Build the gateway image
+        run: docker build -f gateway/Dockerfile -t event-registration-gateway:ci ./gateway
+
+      # The image's entrypoint renders /etc/nginx/templates/*.template with
+      # envsubst whenever the command is `nginx`, so this validates the real
+      # rendered file rather than the template. It catches a syntax error and a
+      # directive referring to a variable that was never set.
+      - name: Validate the rendered nginx configuration
+        run: docker run --rm ${GW_ENV} event-registration-gateway:ci nginx -t
+
+      # Two things nginx -t cannot tell us.
+      #
+      # A substituted upstream proves envsubst actually ran, rather than the
+      # template having been copied through untouched.
+      #
+      # A leftover ${GATEWAY_...} placeholder proves the template references a
+      # variable the environment does not set. nginx -t catches that only where
+      # the placeholder lands in a directive; inside a string literal -- the
+      # /health JSON body, for instance -- nginx accepts it happily and the
+      # gateway then serves the placeholder text to clients.
+      - name: Check the rendered configuration is complete
+        run: |
+          rendered="$(docker run --rm ${GW_ENV} --entrypoint sh \
+            event-registration-gateway:ci -c \
+            '/docker-entrypoint.d/20-envsubst-on-templates.sh >/dev/null 2>&1; cat /etc/nginx/conf.d/gateway.conf')"
+
+          if ! grep -q 'set \$accounts_service accounts:8000;' <<<"$rendered"; then
+            echo "::error::envsubst did not substitute GATEWAY_ACCOUNTS_UPSTREAM; the template was not rendered"
+            exit 1
+          fi
+
+          if grep -n '\${GATEWAY_' <<<"$rendered"; then
+            echo "::error::the lines above still hold a GATEWAY_ placeholder: the template names a variable that is not set in the gateway's environment"
+            exit 1
+          fi
+
+          echo "Rendered configuration is complete: upstreams substituted, no placeholders left."
+
+      - name: Publish results summary
+        if: always()
+        run: |
+          {
+            echo "## Gateway"
+            echo
+            echo "Image \`event-registration-gateway:ci\`: **built**"
+            echo
+            echo "\`nginx -t\` on the rendered configuration, and the"
+            echo "no-leftover-placeholder check: **passed**"
+          } >> "$GITHUB_STEP_SUMMARY"

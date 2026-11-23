@@ -9,17 +9,28 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+{# A navigation item marks itself current for its whole section, so /events/5/edit
+   still shows "Events" as the place the user is in. #}
+{% macro nav_link(target, label) %}
+  {%- set current = request.path == target or request.path.startswith(target ~ '/') -%}
+  <a href="{{ target }}"{% if current %} aria-current="page"{% endif %}>{{ label }}</a>
+{%- endmacro %}
 <body>
   <header class="site-header">
     <a class="brand" href="{{ url_for('index') }}">Event Registration</a>
     <nav aria-label="Main navigation">
-      <a href="{{ url_for('list_records', resource='events') }}">Events</a>
-      <a href="{{ url_for('list_records', resource='users') }}">Clients</a>
+      {{ nav_link(url_for('list_records', resource='events'), 'Events') }}
+      {% if session.get('role') == 'administrator' %}
+      {{ nav_link(url_for('list_records', resource='users'), 'Clients') }}
+      {% endif %}
       {% if session.get('role') == 'client' %}
-      <a href="{{ url_for('list_records', resource='registrations') }}">My registrations</a>
+      {{ nav_link(url_for('list_records', resource='registrations'), 'My registrations') }}
+      {% endif %}
+      {% if session.get('access_token') %}
+      {{ nav_link(url_for('profile'), 'My profile') }}
       {% endif %}
       {% if session.get('role') == 'administrator' %}
-      <a href="{{ url_for('new_account') }}">Create account</a>
+      {{ nav_link(url_for('new_account'), 'Create account') }}
       {% endif %}
     </nav>
     <div class="header-actions">
@@ -50,8 +61,10 @@
   <footer class="site-footer">
     <a class="brand" href="{{ url_for('index') }}">Event Registration</a>
     <nav aria-label="Footer navigation">
-      <a href="{{ url_for('list_records', resource='events') }}">Events</a>
-      <a href="{{ url_for('list_records', resource='users') }}">Clients</a>
+      {{ nav_link(url_for('list_records', resource='events'), 'Events') }}
+      {% if session.get('access_token') %}
+      {{ nav_link(url_for('profile'), 'My profile') }}
+      {% endif %}
     </nav>
     <p class="footer-bar">Event registration managed through the documented API.</p>
   </footer>

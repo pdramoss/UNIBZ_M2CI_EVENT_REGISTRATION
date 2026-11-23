@@ -14,9 +14,19 @@
   <a class="card" href="{{ url_for('list_records', resource='events') }}">
     <span class="card-number">01</span><h2>Events</h2><p>Browse event details{% if session.get('role') == 'administrator' %} and manage events{% endif %}.</p>
   </a>
+  {% if session.get('role') == 'administrator' %}
   <a class="card" href="{{ url_for('list_records', resource='users') }}">
-    <span class="card-number">02</span><h2>Clients</h2><p>View and manage client profiles or create a new account.</p>
+    <span class="card-number">02</span><h2>Clients</h2><p>View and manage client profiles.</p>
   </a>
+  {% elif session.get('access_token') %}
+  <a class="card" href="{{ url_for('profile') }}">
+    <span class="card-number">02</span><h2>My profile</h2><p>Review your account details and change your password.</p>
+  </a>
+  {% else %}
+  <a class="card" href="{{ url_for('new_record', resource='users') }}">
+    <span class="card-number">02</span><h2>Sign up</h2><p>Create a client account to register for events.</p>
+  </a>
+  {% endif %}
   {% if session.get('role') == 'client' %}
   <a class="card" href="{{ url_for('list_records', resource='registrations') }}">
     <span class="card-number">03</span><h2>My registrations</h2><p>Create, update, and cancel your event registrations.</p>

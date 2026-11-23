@@ -1,0 +1,16 @@
+{# Error summary at the top of a form: findable by keyboard and screen reader,
+   and linked to each field that still needs attention. The inline messages next
+   to the fields themselves stay in place alongside it. #}
+{% if error or field_errors %}
+<div class="error-summary" role="alert" tabindex="-1" autofocus aria-labelledby="error-summary-title">
+  <h2 id="error-summary-title">There is a problem</h2>
+  {% if error %}<p>{{ error }}</p>{% endif %}
+  {% if field_errors %}
+  <ul>
+    {% for name, message in field_errors.items() %}
+    <li><a href="#{{ name }}">{{ message }}</a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}

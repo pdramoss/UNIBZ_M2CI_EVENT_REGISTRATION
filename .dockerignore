@@ -1,9 +1,16 @@
 .git
+.github
 .DS_Store
 .env
 .venv
 __pycache__/
 *.py[cod]
 tests/
+reports/
 /data/
 *.sqlite3
+# Local tool output and documentation: every image now builds from the
+# repository root so it can reach common/, which makes a tight context matter.
+graphify-out/
+migrations/
+*.md

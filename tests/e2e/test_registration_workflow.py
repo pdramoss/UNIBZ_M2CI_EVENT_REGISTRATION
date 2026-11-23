@@ -71,10 +71,16 @@ def registration_workflow(
                 cleanup_errors, response, 401, "verify Client session revocation"
             )
 
-        if workflow.user_id is not None:
-            response = api.delete(f"/api/v1/users/{workflow.user_id}")
+        if workflow.user_id is not None and workflow.admin_headers:
+            response = api.delete(
+                f"/api/v1/users/{workflow.user_id}",
+                headers=workflow.admin_headers,
+            )
             _record_status(cleanup_errors, response, 204, "delete test Client")
-            response = api.get(f"/api/v1/users/{workflow.user_id}")
+            response = api.get(
+                f"/api/v1/users/{workflow.user_id}",
+                headers=workflow.admin_headers,
+            )
             _record_status(cleanup_errors, response, 404, "verify Client cleanup")
 
         if workflow.event_id is not None and workflow.admin_headers:
@@ -156,7 +162,12 @@ def test_client_can_register_for_an_event(registration_workflow: RegistrationWor
     registration_workflow.user_id = client["id"]
     assert client["role"] == "client"
     assert "password" not in client
-    client_state = api.get(f"/api/v1/users/{client['id']}")
+    # A client record is readable by an administrator or by its owner, and by
+    # nobody else -- not even anonymously.
+    assert api.get(f"/api/v1/users/{client['id']}").status == 401
+    client_state = api.get(
+        f"/api/v1/users/{client['id']}", headers=registration_workflow.admin_headers
+    )
     assert client_state.status == 200, client_state.text()
     assert client_state.json() == client
 

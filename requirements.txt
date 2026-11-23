@@ -1,7 +1,5 @@
-fastapi>=0.115,<1.0
-cachelib>=0.13,<1.0
-Flask>=3.0,<4.0
-Flask-Session>=0.8,<1.0
-Flask-WTF>=1.2,<2.0
-waitress>=3.0,<4.0
-uvicorn>=0.30,<1.0
+# The whole application's runtime dependencies, for local development and for
+# the test suite, which exercises every service in one interpreter. Each
+# container installs only its own file; nothing installs this one.
+-r common/requirements.txt
+-r web/requirements.txt

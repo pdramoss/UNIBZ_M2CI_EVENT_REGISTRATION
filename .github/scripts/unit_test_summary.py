@@ -1,6 +1,8 @@
 """Write a Markdown summary of the CI build and unit-test results.
 
-Usage: unit_test_summary.py <junit-xml> <docker-image-tag>
+Usage: unit_test_summary.py <junit-xml> [docker-image-tag]
+The image tag is optional: the pipelines that only run tests, without building
+an image, omit it rather than report one as missing.
 The output is meant to be appended to the GitHub Actions job summary.
 """
 
@@ -56,11 +58,13 @@ def test_lines(report: Path) -> list[str]:
 
 
 def main() -> None:
-    report, tag = Path(sys.argv[1]), sys.argv[2]
-    print("## Build and unit tests")
+    report = Path(sys.argv[1])
+    tag = sys.argv[2] if len(sys.argv) > 2 else None
+    print("## Build and unit tests" if tag else "## Unit tests")
     print()
-    print(image_line(tag))
-    print()
+    if tag:
+        print(image_line(tag))
+        print()
     print("\n".join(test_lines(report)))
 
 

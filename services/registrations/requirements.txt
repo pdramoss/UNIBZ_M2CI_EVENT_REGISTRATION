@@ -1,0 +1,6 @@
+# The registrations service's runtime dependencies.
+#
+# The shared backend set comes from common/. Relative -r is resolved against
+# this file's own directory, which is why each image preserves the repository
+# layout under /workspace. Service-specific dependencies go below.
+-r ../../common/requirements.txt

@@ -6,18 +6,22 @@
   <p class="eyebrow">ADMINISTRATION</p>
   <h1>Create an account</h1>
   <p class="muted">Only Administrators can create Client and Administrator accounts.</p>
-  {% if error %}<p class="message error" role="alert">{{ error }}</p>{% endif %}
+  {% include "_form_errors.html" %}
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% set role_error = field_errors.get('role') %}
     <label for="role">Account type</label>
-    <select id="role" name="role" required>
+    <select id="role" name="role" required {% if role_error %}aria-invalid="true" aria-describedby="role-error"{% endif %}>
       <option value="">Select a role</option>
       <option value="client" {% if values.get('role') == 'client' %}selected{% endif %}>Client</option>
       <option value="administrator" {% if values.get('role') == 'administrator' %}selected{% endif %}>Administrator</option>
     </select>
+    {% if role_error %}<p class="field-error" id="role-error"><span class="field-error__mark" aria-hidden="true">!</span> {{ role_error }}</p>{% endif %}
     {% for name, label, input_type in [('name', 'Name', 'text'), ('email', 'Email', 'email'), ('age', 'Age', 'number'), ('username', 'Username', 'text'), ('password', 'Password', 'password')] %}
+    {% set field_error = field_errors.get(name) %}
     <label for="{{ name }}">{{ label }}<span aria-hidden="true"> *</span></label>
-    <input id="{{ name }}" name="{{ name }}" type="{{ input_type }}" required {% if input_type == 'number' %}min="0"{% endif %} {% if name == 'password' %}autocomplete="new-password"{% endif %} value="{{ '' if name == 'password' else values.get(name, '') }}">
+    <input id="{{ name }}" name="{{ name }}" type="{{ input_type }}" required {% if input_type == 'number' %}min="0"{% endif %} {% if name == 'password' %}autocomplete="new-password"{% endif %} value="{{ '' if name == 'password' else values.get(name, '') }}" {% if field_error %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+    {% if field_error %}<p class="field-error" id="{{ name }}-error"><span class="field-error__mark" aria-hidden="true">!</span> {{ field_error }}</p>{% endif %}
     {% endfor %}
     <button class="button" type="submit">Create account</button>
   </form>
