@@ -76,6 +76,7 @@ class EventRead(APIModel):
     description: str
     capacity: int
     place: str
+    available_seats: int
 
 
 class RegistrationCreate(APIModel):

@@ -9,14 +9,29 @@
   <form method="post" action="{{ url_for('edit_record', resource=resource, record_id=record_id) if editing else url_for('new_record', resource=resource) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for name, label, input_type in fields %}
-    <label for="{{ name }}">{{ label }}{% if name != 'password' or not editing %}<span aria-hidden="true"> *</span>{% else %} <span class="muted">(leave blank to keep current)</span>{% endif %}</label>
+    <label for="{{ name }}">{{ label }}{% if input_type == 'readonly' %}{% elif name != 'password' or not editing %}<span aria-hidden="true"> *</span>{% else %} <span class="muted">(leave blank to keep current)</span>{% endif %}</label>
     {% if name == 'description' %}
     <textarea id="{{ name }}" name="{{ name }}" rows="3">{{ values.get(name, '') }}</textarea>
+    {% elif input_type == 'select' %}
+    <select id="{{ name }}" name="{{ name }}" required>
+      <option value="" {% if not values.get(name) %}selected{% endif %}>Select an event</option>
+      {% for value, option_label, option_date in options.get(name, []) %}
+      <option value="{{ value }}" data-date="{{ option_date }}" {% if values.get(name)|string == value %}selected{% endif %}>{{ option_label }}</option>
+      {% endfor %}
+    </select>
+    {% if not options.get(name) %}<p class="muted">No events are available yet.</p>{% endif %}
+    {% elif input_type == 'readonly' %}
+    <p class="field-value" id="{{ name }}" data-empty="Select an event first" aria-live="polite">{{ values.get(name, '') or 'Select an event first' }}</p>
     {% else %}
-    <input id="{{ name }}" name="{{ name }}" type="{{ input_type }}" value="{{ '' if name == 'password' else values.get(name, '') }}" {% if name != 'password' or not editing %}required{% endif %} {% if input_type == 'number' %}min="{{ 1 if name == 'event_id' else 0 }}"{% endif %} {% if name == 'password' %}autocomplete="new-password"{% endif %}>
+    <input id="{{ name }}" name="{{ name }}" type="{{ input_type }}" value="{{ '' if name == 'password' else values.get(name, '') }}" {% if name != 'password' or not editing %}required{% endif %} {% if input_type == 'number' %}min="0"{% endif %} {% if name == 'password' %}autocomplete="new-password"{% endif %}>
     {% endif %}
     {% endfor %}
     <button class="button" type="submit">{{ 'Save changes' if editing else 'Create' }}</button>
   </form>
 </section>
+{% endblock %}
+{% block scripts %}
+{% if resource == 'registrations' %}
+<script src="{{ url_for('static', filename='registration_form.js') }}" defer></script>
+{% endif %}
 {% endblock %}

@@ -5,7 +5,7 @@
 <div class="page-heading"><div><p class="eyebrow">{{ resource[:-1]|upper }} DETAILS</p><h1>{{ record.get('name') or (resource[:-1]|capitalize ~ ' #' ~ record.get('id')) }}</h1></div></div>
 <dl class="detail-grid">
   {% for key, value in record.items() %}
-  <div><dt>{{ key|replace('_', ' ')|capitalize }}</dt><dd>{{ value }}</dd></div>
+  <div><dt>{{ field_labels.get(key) or key|replace('_', ' ')|capitalize }}</dt><dd>{{ value }}</dd></div>
   {% endfor %}
 </dl>
 {% if can_modify %}

@@ -504,6 +504,46 @@ def test_event_and_registration_crud_enforces_capacity(client: TestClient):
     )
 
 
+def test_event_reports_available_seats(client: TestClient):
+    create_user(client, "alex")
+    admin_headers = bearer_headers(login(client, "test-admin", "test-admin-password"))
+    client_headers = bearer_headers(login(client, "alex", "test-password"))
+    event = client.post(
+        "/api/v1/events",
+        json={
+            "name": "Workshop",
+            "date": "2026-12-01",
+            "description": "Two seats only",
+            "capacity": 2,
+            "place": "Bolzano",
+        },
+        headers=admin_headers,
+    ).json()
+    assert event["capacity"] == 2
+    assert event["available_seats"] == 2
+
+    registration = client.post(
+        "/api/v1/registrations",
+        json={"date": "2026-12-01", "event_id": event["id"]},
+        headers=client_headers,
+    )
+    assert registration.status_code == 201
+
+    detail = client.get(f"/api/v1/events/{event['id']}").json()
+    assert detail["capacity"] == 2
+    assert detail["available_seats"] == 1
+    assert client.get("/api/v1/events").json()[0]["available_seats"] == 1
+
+    assert (
+        client.delete(
+            f"/api/v1/registrations/{registration.json()['id']}",
+            headers=client_headers,
+        ).status_code
+        == 204
+    )
+    assert client.get(f"/api/v1/events/{event['id']}").json()["available_seats"] == 2
+
+
 def test_registration_rejects_missing_event(client: TestClient):
     create_user(client)
     client_headers = bearer_headers(login(client, "alex", "test-password"))

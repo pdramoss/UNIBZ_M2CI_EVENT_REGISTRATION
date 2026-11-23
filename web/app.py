@@ -39,9 +39,15 @@ RESOURCE_FIELDS = {
         ("place", "Place", "text"),
     ),
     "registrations": (
-        ("date", "Date", "date"),
-        ("event_id", "Event ID", "number"),
+        ("event_id", "Event", "select"),
+        ("date", "Date", "readonly"),
     ),
+}
+
+
+DETAIL_FIELD_LABELS = {
+    "capacity": "Maximum capacity",
+    "available_seats": "Available seats",
 }
 
 
@@ -297,6 +303,7 @@ def create_app(test_config: Mapping[str, object] | None = None) -> Flask:
             "detail.html",
             resource=resource,
             record=record,
+            field_labels=DETAIL_FIELD_LABELS,
             can_modify=_can_write_resource(resource),
         )
 
@@ -476,6 +483,10 @@ def _form_payload(resource: str, editing: bool) -> dict[str, object]:
         if editing and name == "password" and not value:
             continue
         payload[name] = value
+    if resource == "registrations" and payload.get("event_id"):
+        event_date = _event_date(payload["event_id"])
+        if event_date:
+            payload["date"] = event_date
     return payload
 
 
@@ -484,6 +495,40 @@ def _account_payload() -> dict[str, object]:
         name: request.form.get(name, "").strip()
         for name in ("name", "email", "age", "username", "password")
     }
+
+
+def _event_options() -> list[tuple[str, str, str]]:
+    try:
+        events = _api_request(
+            "GET",
+            f"/api/v1/events?{urlencode({'limit': 500, 'offset': 0})}",
+            authenticated=False,
+        )
+    except APIClientError:
+        return []
+    if not isinstance(events, list):
+        return []
+    return [
+        (
+            str(event["id"]),
+            f"{event.get('name', '')} — {event.get('date', '')} (#{event['id']})",
+            str(event.get("date", "")),
+        )
+        for event in events
+        if isinstance(event, dict) and isinstance(event.get("id"), int)
+    ]
+
+
+def _event_date(event_id: object) -> str | None:
+    try:
+        event = _api_request(
+            "GET", f"/api/v1/events/{int(str(event_id))}", authenticated=False
+        )
+    except (APIClientError, ValueError):
+        return None
+    if isinstance(event, dict) and isinstance(event.get("date"), str):
+        return event["date"]
+    return None
 
 
 def _render_form(
@@ -504,6 +549,9 @@ def _render_form(
                 "password",
             )
         )
+    options: dict[str, list[tuple[str, str]]] = {}
+    if resource == "registrations":
+        options["event_id"] = _event_options()
     return (
         render_template(
             "form.html",
@@ -512,6 +560,7 @@ def _render_form(
             editing=editing,
             record_id=record_id,
             values=values,
+            options=options,
             error=error,
         ),
         status_code,

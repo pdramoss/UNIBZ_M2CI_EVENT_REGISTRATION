@@ -43,6 +43,14 @@ router = APIRouter(prefix="/api/v1")
 
 AccountRole = Literal["client", "administrator"]
 
+EVENT_COLUMNS = """
+    id, name, date, description, capacity, place,
+    (
+        SELECT COUNT(*) FROM registrations
+        WHERE registrations.event_id = events.id
+    ) AS registered
+"""
+
 
 @router.post("/auth/login", response_model=LoginResponse)
 def login(
@@ -143,6 +151,7 @@ def _read_event(row: sqlite3.Row) -> EventRead:
         description=row["description"],
         capacity=row["capacity"],
         place=row["place"],
+        available_seats=max(row["capacity"] - row["registered"], 0),
     )
 
 
@@ -212,7 +221,7 @@ def _create_account(
 
 def _get_event(connection: sqlite3.Connection, event_id: int) -> sqlite3.Row:
     row = connection.execute(
-        "SELECT id, name, date, description, capacity, place FROM events WHERE id = ?",
+        f"SELECT {EVENT_COLUMNS} FROM events WHERE id = ?",
         (event_id,),
     ).fetchone()
     if row is None:
@@ -421,10 +430,7 @@ def list_events(
     connection: sqlite3.Connection = Depends(get_db),
 ):
     rows = connection.execute(
-        """
-        SELECT id, name, date, description, capacity, place
-        FROM events ORDER BY id LIMIT ? OFFSET ?
-        """,
+        f"SELECT {EVENT_COLUMNS} FROM events ORDER BY id LIMIT ? OFFSET ?",
         (limit, offset),
     ).fetchall()
     return [_read_event(row) for row in rows]

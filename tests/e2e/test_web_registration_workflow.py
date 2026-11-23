@@ -167,7 +167,6 @@ def test_client_manages_registration_through_web_forms():
                 "/registrations/new",
                 form={
                     "csrf_token": _csrf_token(registration_form),
-                    "date": "2030-01-02",
                     "event_id": str(event_id),
                 },
             )
@@ -181,7 +180,6 @@ def test_client_manages_registration_through_web_forms():
                 f"/registrations/{registration_id}/edit",
                 form={
                     "csrf_token": _csrf_token(registration_edit_page),
-                    "date": "2030-01-03",
                     "event_id": str(event_id),
                 },
             )
@@ -196,7 +194,7 @@ def test_client_manages_registration_through_web_forms():
             assert registration_state.status == 200, registration_state.text()
             assert registration_state.json() == {
                 "id": registration_id,
-                "date": "2030-01-03",
+                "date": "2030-01-01",
                 "user_id": user_id,
                 "event_id": event_id,
             }

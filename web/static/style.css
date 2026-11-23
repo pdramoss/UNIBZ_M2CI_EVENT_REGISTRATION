@@ -204,6 +204,7 @@ input:focus, textarea:focus, select:focus {
   outline: 3px solid color-mix(in srgb, var(--accent) 22%, transparent);
   border-color: var(--accent);
 }
+.field-value { min-height: 44px; margin: 0; padding: 10px var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-raised); }
 .form-card form > .button { justify-self: start; margin-top: var(--space-3); }
 .back-link { display: inline-block; margin-bottom: 22px; font-size: var(--fs-sm); text-decoration: none; }
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0; padding: 10px 26px; }

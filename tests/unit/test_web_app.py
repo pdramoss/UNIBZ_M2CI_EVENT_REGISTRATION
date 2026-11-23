@@ -70,6 +70,67 @@ def test_client_can_create_registration_with_server_side_token(web_client):
     assert api_client.token == "client-token"
 
 
+def test_registration_form_offers_events_as_a_dropdown(web_client):
+    with web_client.session_transaction() as browser_session:
+        browser_session["access_token"] = "client-token"
+        browser_session["role"] = "client"
+        browser_session["username"] = "alex"
+
+    events = [
+        {"id": 4, "name": "Hackathon", "date": "2026-12-01"},
+        {"id": 7, "name": "Workshop", "date": "2027-01-15"},
+    ]
+    with patch("web.app.APIClient.request", return_value=events):
+        page = web_client.get("/registrations/new").get_data(as_text=True)
+
+    assert '<select id="event_id" name="event_id"' in page
+    assert '<option value="4" data-date="2026-12-01" >Hackathon' in page
+    assert '<option value="7" data-date="2027-01-15" >Workshop' in page
+    assert 'name="event_id" type="number"' not in page
+
+
+def test_registration_form_shows_event_date_as_a_read_only_label(web_client):
+    with web_client.session_transaction() as browser_session:
+        browser_session["access_token"] = "client-token"
+        browser_session["role"] = "client"
+        browser_session["username"] = "alex"
+
+    events = [{"id": 4, "name": "Hackathon", "date": "2026-12-01"}]
+    with patch("web.app.APIClient.request", return_value=events):
+        page = web_client.get("/registrations/new").get_data(as_text=True)
+
+    assert '<p class="field-value" id="date"' in page
+    assert 'name="date"' not in page
+    assert "registration_form.js" in page
+
+
+def test_registration_date_is_taken_from_the_selected_event(web_client):
+    with web_client.session_transaction() as browser_session:
+        browser_session["access_token"] = "client-token"
+        browser_session["role"] = "client"
+        browser_session["username"] = "alex"
+
+    def api_response(_self, method, path, payload=None):
+        if method == "GET" and path == "/api/v1/events/4":
+            return {"id": 4, "name": "Hackathon", "date": "2026-12-01"}
+        return {"id": 8, "date": "2026-12-01", "user_id": 3, "event_id": 4}
+
+    with patch(
+        "web.app.APIClient.request", autospec=True, side_effect=api_response
+    ) as api_request:
+        response = web_client.post(
+            "/registrations/new",
+            data={"event_id": "4", "date": "1999-01-01"},
+        )
+
+    assert response.status_code == 302
+    assert api_request.call_args.args[1:] == (
+        "POST",
+        "/api/v1/registrations",
+        {"event_id": "4", "date": "2026-12-01"},
+    )
+
+
 def test_administrator_can_create_another_administrator(web_client):
     with web_client.session_transaction() as browser_session:
         browser_session["access_token"] = "admin-token"
@@ -171,6 +232,25 @@ def test_event_list_renders_records_and_pagination(web_client):
     assert b"Meetup" in response.data
     assert b"Previous" in response.data
     assert b"Next" in response.data
+
+
+def test_event_detail_shows_capacity_and_available_seats(web_client):
+    with patch(
+        "web.app.APIClient.request",
+        return_value={
+            "id": 5,
+            "name": "Meetup",
+            "date": "2026-12-01",
+            "description": "Community event",
+            "capacity": 20,
+            "place": "Bolzano",
+            "available_seats": 17,
+        },
+    ):
+        page = web_client.get("/events/5").get_data(as_text=True)
+
+    assert "<dt>Maximum capacity</dt><dd>20</dd>" in page
+    assert "<dt>Available seats</dt><dd>17</dd>" in page
 
 
 def test_api_validation_error_is_shown_without_echoing_password(web_client):
